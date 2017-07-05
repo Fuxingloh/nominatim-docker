@@ -1,4 +1,4 @@
-# Nominatim Docker
+# Nominatim Docker for Malaysia, Singapore, and Brunei
 
 100% working container for [Nominatim](https://github.com/twain47/Nominatim).
 
