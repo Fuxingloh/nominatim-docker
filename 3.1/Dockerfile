@@ -41,14 +41,20 @@ COPY local.php /app/src/build/settings/local.php
 COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
 
 # Load initial data
+ARG PBF_DATA=http://download.geofabrik.de/asia/malaysia-singapore-brunei-latest.osm.pbf
+RUN curl -L -f $PBF_DATA --create-dirs -o /app/src/data.osm.pbf
 RUN curl http://www.nominatim.org/data/country_grid.sql.gz > /app/src/data/country_osm_grid.sql.gz
-RUN curl -L http://download.geofabrik.de/asia/malaysia-singapore-brunei-latest.osm.pbf --create-dirs -o /app/src/data.osm.pbf
+RUN service postgresql start && \
+    sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='nominatim'" | grep -q 1 || sudo -u postgres createuser -s nominatim && \
+    sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='www-data'" | grep -q 1 || sudo -u postgres createuser -SDR www-data && \
+    sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim" && \
+    useradd -m -p password1234 nominatim && \
+    chown -R nominatim:nominatim ./src && \
+    sudo -u nominatim ./src/build/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads 8 && \
+    service postgresql stop
 
 EXPOSE 5432
 EXPOSE 8080
 
 COPY start.sh /app/start.sh
-COPY init.sh /app/init.sh
-
-RUN /app/init.sh /app/src/data.osm.pbf postgresdata 6
 CMD /app/start.sh
